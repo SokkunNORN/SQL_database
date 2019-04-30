@@ -1,0 +1,8 @@
+DELIMITER $$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `selectStudent`(in name varchar(50))
+begin
+		select * from view_info_student stu 
+			where stu.fullName like 
+			concat("%", name, "%"); 
+	end$$
+DELIMITER ;

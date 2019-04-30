@@ -1,0 +1,248 @@
+1 view name v_category
+create view v_category as 
+	select * from category;
+
+2 view name v_report_product
+use pnc;
+#create view v_report_product as
+	select pro.pid, pro.pname, pro.quantity, pro.unitprice,
+			concat('$ ', pro.unitprice * pro.quantity) as Subtitle, cat.catname, sto.storename
+			from product pro left join store sto on pro.storeid = sto.storeid 
+			left join category cat on pro.catid = cat.catid;
+
+3 view name v_info_manager
+create view v_info_manager as
+	select emp.id as "Manager ID",
+		concat(emp.firstname, " ", emp.lastname) as "Manager Name",
+		dep.departmentname as "Department",
+		sto.storename as "Store Name",
+		loc.locationname as "Location" 
+		from employee emp 
+		inner join tbldepartment dep
+		on dep.departmentid = emp.departmentid 
+		inner join location loc
+		on emp.id = loc.managerid
+		inner join store sto
+		on loc.locationid = sto.locationid
+
+
+4 view name m_product_summarization
+	use pnc;
+	create view m_product_summarization as
+ 	       select cat.catname as "Category Name", count(pro.catid) as "Number of Product",
+ 		sum(pro.quantity) as "Total Quanlity", 
+		concat('$ ', sum(pro.quantity * pro.unitprice)) as "Sub Total", 
+		min(pro.quantity) as "Minimun Quanlity",
+ 		max(pro.quantity) as "Maximun Quanlity", 
+		CAST(avg(pro.quantity) as int) as "Average Quanlity",
+ 		concat('$ ', sum(pro.unitprice)) as "Total Cost"
+		from category cat inner join product pro 
+		on pro.catid = cat.catid group by cat.catid;
+
+5 veiw name v_sales_2009
+create view v_sales_2009 as
+	select sal.salesid as "Sale ID",
+		pro.pname as "Product Name",
+		sal.quantity as "Sold Quanlity",
+		concat('$ ', pro.unitprice) as "Unitprice Price",
+		concat('$ ', pro.unitprice * sal.quantity) as "Sub Total",
+		sal.seller as "Saler Name"
+	 	from sales sal 
+		inner join product pro
+	 	on sal.pid = pro.pid
+	 	and sal.salesdate between '2009/01/01' and '2009/12/31'
+		group by sal.salesid;
+
+6 view name  v_sales_2009_to_2010
+#create view v_sales_2009_to_2010 as
+	select sal.seller as "Saller Name",
+		min(sal.quantity) as "Minimun Quanlity",
+		max(sal.quantity) as "Maximun Quanlity",
+		sum(sal.quantity) as "Total Quanlity",
+		concat('$ ', sum(pro.unitprice * sal.quantity)) as "Total Amount"
+	 	from sales sal
+		inner join product pro
+		on pro.pid = sal.pid 
+		and sal.salesdate between '2009/01/01' and '2010/12/31'	
+		group by sal.seller;
+		
+7 
+#create view v_reportByYear as
+	select
+		distinct year(sal.salesdate) as "Year",
+		concat('$ ', format(min(sal.quantity * pro.unitprice),3)) as "Minimum Sale",
+		concat ('$ ' , format(max(sal.quantity * pro.unitprice),3)) as "Maximum Sale",
+		concat('$ ', format(avg(sal.quantity * pro.unitprice),3)) as "Average Sale",
+		concat('$ ', format(sum(sal.quantity * pro.unitprice),3)) as "Total Sale"
+		from sales sal inner join product pro
+		on sal.pid = pro.pid 
+		group by year(sal.salesdate);
+		
+		
+		select * from v_reportByYear;
+
+
+=================================================
+store procudule 
+1 delimiter //
+#create procedure getAge (in born int(10))
+#	begin
+#		SELECT YEAR(CURDATE()) - born as 'Your age';
+#	end //
+
+call getAge(1998);
+
+
+3 delimiter //
+create procedure p_category (in born int(10))
+	begin
+		SELECT * from category;
+	end //
+
+call p_category;
+
+
+4 delimiter //
+#create procedure p_minQuanlity_product()
+#	begin
+#		select 
+#			pro.pid, pro.pname, pro.supplier,
+#			pro.unitprice, min(pro.quantity), 
+#			pro.catid, pro.storeid,
+#			pro.description
+#		 	from product pro;
+#	end //
+call p_minQuanlity_product();
+
+
+6 #delimiter //
+#create procedure p_delete_product (in id int(10))
+#	begin
+#		delete from product where pid = id;
+#	end //
+
+call p_delete_product(1);
+
+7 #delimiter //
+#create procedure p_getWrongProducts ()
+#	begin
+#		select * from product pro 
+#			where not exists (select * from category cat where pro.catid = cat.catid);
+#	end //
+
+call p_getWrongProducts();
+
+9 
+#delimiter //
+#create procedure p_searchProduct(in name varchar(100)) 
+#	begin
+#		select * from product pro where pro.pname like concat('%', name, '%');
+#	end //
+
+call p_searchProduct('mo');
+
+
+==============================================
+trigger
+1
+#create table new_category (
+#	id int primary key auto_increment,
+#	cat_name varchar(100),
+#	time date,
+#	action varchar(100),
+#	cat_id int
+#);
+
+
+
+delimiter //
+#create trigger t_new_category after insert on category
+#	for each row
+#	begin 
+#		insert into new_category(cat_name, time, action, cat_id)
+#			values (new.catname, time=curdate(), "insert", new.catid);
+#	end //
+
+select * from new_category;
+
+
+2
+#drop table backup_category;
+
+#create table backup_category (
+#	id int primary key auto_increment,
+#	cat_name varchar(100),
+#	currenttime date,
+#	action varchar(100),
+#	cat_id int
+#);
+
+
+#drop trigger t_backup_category;
+
+#delimiter //
+#create trigger t_backup_category before delete on category
+#	for each row
+#	begin 
+#		insert into backup_category(cat_name, currenttime, action, cat_id)
+#			values (old.catname, currenttime=curdate(), "delete", old.catid);
+#	end //
+
+select * from backup_category;
+
+3
+#drop table backup_category;
+
+#create table backup_before_update_category (
+#	id int primary key auto_increment,
+#	cat_name varchar(100),
+#	time date,
+#	action varchar(100),
+#	cat_id int
+#);
+
+
+#drop trigger t_backup_category;
+
+#delimiter //
+#create trigger tbackup_before_update_category before update on category
+#	for each row
+#	begin 
+#		insert into backup_before_update_category(cat_name, time, action, cat_id)
+#			values (old.catname, time=curdate(), "before update", old.catid);
+#	end //
+
+#select * from backup_category;
+#describe backup_category;
+
+select * from backup_before_update_category;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
